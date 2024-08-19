@@ -1,8 +1,8 @@
-use std::{default, path::PathBuf};
+use std::{collections::HashMap, default, path::PathBuf};
 
 use eframe::egui;
 use egui_file_dialog::FileDialog;
-use egui::{ahash::HashMap, Color32, RichText, Widget};
+use egui::{Color32, RichText, Widget};
 use network_interface::{NetworkInterface, NetworkInterfaceConfig};
 
 use crate::network::{self, NetworkProfile};
@@ -49,13 +49,25 @@ impl eframe::App for NetProfiler {
                 // Import the file
                 if let Ok(profiles) = serde_json::from_str::<HashMap<String, network::NetworkProfile>>(&std::fs::read_to_string(&file_path).unwrap()) {
                     for (name, profile) in profiles {
-                        self.profiles.insert(name, profile);
+                        self.profiles.insert(name, NetworkProfile {
+                            adapter: String::new(),
+                            ..profile
+                        });
                     }
                 }
             } else {
+                // Remove adapter field from profiles
+                let mut export_profiles: HashMap<String, NetworkProfile> = HashMap::new();
+                for (name, profile) in self.profiles.iter() {
+                    export_profiles.insert(name.clone(), NetworkProfile {
+                        adapter: String::new(),
+                        ..profile.clone()
+                    });
+                }
+
                 // Export the file
                 let file_path = PathBuf::from(file_path).with_extension("nprf");
-                let profiles = serde_json::to_string(&self.profiles).unwrap();
+                let profiles = serde_json::to_string(&export_profiles).unwrap();
                 match std::fs::write(&file_path, profiles) {
                     Ok(_) => println!("File saved successfully"),
                     Err(e) => println!("Error saving file: {}", e),

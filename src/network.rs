@@ -5,7 +5,6 @@ use std::{path::PathBuf, process::Command, net::Ipv4Addr};
 #[serde(default)]
 pub struct NetworkProfile {
     pub name: String,
-    #[serde(skip)]
     pub adapter: String,
     pub ip: String,
     pub subnet: String,
