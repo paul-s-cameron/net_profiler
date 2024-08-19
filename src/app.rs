@@ -2,7 +2,7 @@ use std::{default, path::PathBuf};
 
 use eframe::egui;
 use egui_file_dialog::FileDialog;
-use egui::{ahash::HashMap, Widget};
+use egui::{ahash::HashMap, Color32, RichText, Widget};
 use network_interface::{NetworkInterface, NetworkInterfaceConfig};
 
 use crate::network::{self, NetworkProfile};
@@ -21,18 +21,11 @@ pub struct NetProfiler {
     #[serde(skip)]
     import_export: bool, // 0 = import, 1 = export
     #[serde(skip)]
-    profile_builder: bool,
-    #[serde(skip)]
-    builder: network::NetworkProfile,
+    builder: Option<network::NetworkProfile>,
 }
 
 impl NetProfiler {
-    /// Called once before the first frame.
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        // This is also where you can customize the look and feel of egui using
-        // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
-
-        // Load previous app state (if any).
         if let Some(storage) = cc.storage {
             return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
         }
@@ -52,7 +45,6 @@ impl eframe::App for NetProfiler {
         // Check for file dialog events
         self.file_dialog.update(ctx);
         if let Some(file_path) = self.file_dialog.take_selected() {
-            // Set the file extension to .nprf
             if self.import_export {
                 // Import the file
                 if let Ok(profiles) = serde_json::from_str::<HashMap<String, network::NetworkProfile>>(&std::fs::read_to_string(&file_path).unwrap()) {
@@ -72,25 +64,29 @@ impl eframe::App for NetProfiler {
         }
 
         // Profile Builder
-        if self.profile_builder {
+        let mut finished = false;
+        if let Some(ref mut builder) = self.builder.as_mut() {
             egui::Window::new("Profile Builder").show(ctx, |ui| {
                 ui.horizontal(|ui| {
                     ui.label("Profile Name:");
-                    ui.text_edit_singleline(&mut self.builder.name);
+                    ui.text_edit_singleline(&mut builder.name);
                 });
 
-                display_profile(&mut self.builder, ui, &self.adapters);
+                display_profile(builder, ui, &self.adapters);
 
                 ui.horizontal(|ui| {
                     if ui.button("Create").clicked() {
-                        self.profiles.insert(self.builder.name.clone(), self.builder.clone());
-                        self.profile_builder = false;
+                        self.profiles.insert(builder.name.clone(), builder.clone());
+                        finished = true;
                     }
                     if ui.button("Cancel").clicked() {
-                        self.profile_builder = false;
+                        finished = true;
                     }
                 });
             });
+        }
+        if finished {
+            self.builder = None;
         }
 
 
@@ -106,45 +102,64 @@ impl eframe::App for NetProfiler {
                         self.file_dialog.save_file();
                     }
                 });
+
                 if ui.button("Add Profile").clicked() {
-                    self.builder = network::NetworkProfile {
+                    self.builder = Some(network::NetworkProfile {
                         name: "New Profile".to_string(),
                         subnet: "255.255.255.0".to_string(),
                         ..Default::default()
-                    };
-                    self.profile_builder = true;
+                    });
                 }
             });
         });
 
         egui::CentralPanel::default().show(ctx, move |ui| {
-            // The central panel contains all the profiles created by the user
-            let mut profiles_to_remove: Vec<NetworkProfile> = Vec::new();
-            for (name, profile) in self.profiles.iter_mut() {
-                egui::CollapsingHeader::new(name)
-                    .default_open(false)
-                    .show(ui, |ui| {
-                        display_profile(profile, ui, &self.adapters);
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                let mut profiles_to_remove: Vec<NetworkProfile> = Vec::new();
 
-                        ui.horizontal(|ui| {
-                            if ui.button("Load Profile").clicked() {
-                                profile.load();
-                            }
-                            if ui.button("Remove Profile").double_clicked() {
-                                profiles_to_remove.push(profile.clone());
-                            }
-                        });
+                for (name, profile) in self.profiles.iter_mut() {
+                    // Background Frame for padding and stylization
+                    egui::Frame::dark_canvas(ui.style()).show(ui, |ui| {
+                        // Profile input fields
+                        let open = egui::CollapsingHeader::new(RichText::new(name).color(Color32::WHITE))
+                            .default_open(false)
+                            .show(ui, |ui| {
+                                egui::Frame::default()
+                                    .inner_margin(egui::Margin::same(10.0))
+                                    .show(ui, |ui| {
+                                        display_profile(profile, ui, &self.adapters);
+                                    });
+                            })
+                            .fully_open();
+
+                        // Profile actions
+                        egui::Frame::default()
+                            .inner_margin(egui::Margin::same(4.0))
+                            .show(ui, |ui| {
+                                ui.horizontal(|ui| {
+                                    if ui.button(RichText::new("Load Profile").color(Color32::WHITE)).clicked() {
+                                        profile.load();
+                                    }
+                                    if ui.button(RichText::new("Remove Profile").color(Color32::WHITE)).double_clicked() {
+                                        profiles_to_remove.push(profile.clone());
+                                    }
+                                });
+                            });
                     });
-            }
-            for profile in profiles_to_remove {
-                self.profiles.remove(&profile.name);
-            }
+
+                    ui.separator();
+                }
+
+                for profile in profiles_to_remove {
+                    self.profiles.remove(&profile.name);
+                }
+            });
         });
     }
 }
 
 fn display_profile(profile: &mut network::NetworkProfile, ui: &mut egui::Ui, adapters: &Vec<String>) {
-    egui::ComboBox::from_label("Adapter")
+    egui::ComboBox::from_label(RichText::new("Adapter").color(Color32::WHITE))
         .selected_text(&profile.adapter)
         .show_ui(ui, |ui| {
             for adapter in adapters.iter() {
@@ -153,36 +168,58 @@ fn display_profile(profile: &mut network::NetworkProfile, ui: &mut egui::Ui, ada
                 }
             }
         });
-    ui.label("IP: ");
-    ui.text_edit_singleline(&mut profile.ip);
-    ui.label("Subnet: ");
-    ui.text_edit_singleline(&mut profile.subnet);
-    ui.label("Gateway: ");
-    ui.text_edit_singleline(&mut profile.gateway);
-    ui.label("DNS Provider: ");
+    
     ui.horizontal(|ui| {
-        ui.radio_value(&mut profile.dns_provider, network::DNSProvider::Quad9, "Quad9").on_hover_ui(|ui| {
-            ui.style_mut().interaction.selectable_labels = true;
-            ui.label("9.9.9.9\n149.112.112.112\n(Recommended)");
-        });
-        ui.radio_value(&mut profile.dns_provider, network::DNSProvider::Google, "Google").on_hover_ui(|ui| {
-            ui.style_mut().interaction.selectable_labels = true;
-            ui.label("8.8.8.8\n8.8.4.4");
-        });
-        ui.radio_value(&mut profile.dns_provider, network::DNSProvider::Cloudflare, "Cloudflare").on_hover_ui(|ui| {
-            ui.style_mut().interaction.selectable_labels = true;
-            ui.label("1.1.1.2\n1.0.0.2");
-        });
-        ui.radio_value(&mut profile.dns_provider, network::DNSProvider::OpenDNS, "OpenDNS").on_hover_ui(|ui| {
-            ui.style_mut().interaction.selectable_labels = true;
-            ui.label("208.67.222.222\n208.67.220.220");
-        });
-        ui.radio_value(&mut profile.dns_provider, network::DNSProvider::Custom, "Custom");
+        let label = ui.label(RichText::new("IP: ").color(Color32::WHITE));
+        ui.text_edit_singleline(&mut profile.ip).labelled_by(label.id);
     });
-    if profile.dns_provider == network::DNSProvider::Custom {
-        ui.label("Primary DNS: ");
-        ui.text_edit_singleline(&mut profile.primary_dns);
-        ui.label("Secondary DNS: ");
-        ui.text_edit_singleline(&mut profile.secondary_dns);
-    }
+
+    ui.separator();
+
+    ui.horizontal(|ui| {
+        let label = ui.label(RichText::new("Subnet: ").color(Color32::WHITE));
+        ui.text_edit_singleline(&mut profile.subnet).labelled_by(label.id);
+    });
+
+    ui.separator();
+
+    ui.horizontal(|ui| {
+        let label = ui.label(RichText::new("Gateway: ").color(Color32::WHITE));
+        ui.text_edit_singleline(&mut profile.gateway).labelled_by(label.id);
+    });
+
+    ui.separator();
+
+    egui::Frame::default()
+        .fill(Color32::from_rgb(30, 30, 30))
+        .inner_margin(egui::Margin::same(2.0))
+        .rounding(5.0)
+        .show(ui, |ui| {
+            let label = ui.label(RichText::new("DNS Provider: ").color(Color32::WHITE));
+            ui.horizontal(|ui| {
+                ui.radio_value(&mut profile.dns_provider, network::DNSProvider::Quad9, "Quad9").on_hover_ui(|ui| {
+                    ui.style_mut().interaction.selectable_labels = true;
+                    ui.label(RichText::new("9.9.9.9\n149.112.112.112\n(Recommended)").color(Color32::WHITE));
+                }).labelled_by(label.id);
+                ui.radio_value(&mut profile.dns_provider, network::DNSProvider::Google, "Google").on_hover_ui(|ui| {
+                    ui.style_mut().interaction.selectable_labels = true;
+                    ui.label(RichText::new("8.8.8.8\n8.8.4.4").color(Color32::WHITE));
+                }).labelled_by(label.id);
+                ui.radio_value(&mut profile.dns_provider, network::DNSProvider::Cloudflare, "Cloudflare").on_hover_ui(|ui| {
+                    ui.style_mut().interaction.selectable_labels = true;
+                    ui.label(RichText::new("1.1.1.2\n1.0.0.2").color(Color32::WHITE));
+                }).labelled_by(label.id);
+                ui.radio_value(&mut profile.dns_provider, network::DNSProvider::OpenDNS, "OpenDNS").on_hover_ui(|ui| {
+                    ui.style_mut().interaction.selectable_labels = true;
+                    ui.label(RichText::new("208.67.222.222\n208.67.220.220").color(Color32::WHITE));
+                }).labelled_by(label.id);
+                ui.radio_value(&mut profile.dns_provider, network::DNSProvider::Custom, "Custom");
+            });
+            if profile.dns_provider == network::DNSProvider::Custom {
+                let label = ui.label(RichText::new("Primary DNS: ").color(Color32::WHITE));
+                ui.text_edit_singleline(&mut profile.primary_dns).labelled_by(label.id);
+                let label = ui.label(RichText::new("Secondary DNS: ").color(Color32::WHITE));
+                ui.text_edit_singleline(&mut profile.secondary_dns).labelled_by(label.id);
+            }
+        });
 }
