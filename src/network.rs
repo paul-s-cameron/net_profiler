@@ -1,10 +1,11 @@
 use std::{path::PathBuf, process::Command, net::Ipv4Addr};
 
 #[derive(serde::Deserialize, serde::Serialize)]
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(default)]
 pub struct NetworkProfile {
     pub name: String,
+    #[serde(skip)]
     pub adapter: String,
     pub ip: String,
     pub subnet: String,
@@ -65,7 +66,7 @@ impl Into<serde_json::Value> for NetworkProfile {
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DNSProvider {
     #[default]
     Quad9,

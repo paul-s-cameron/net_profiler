@@ -12,6 +12,8 @@ use crate::network::{self, NetworkProfile};
 #[serde(default)]
 pub struct NetProfiler {
     pub profiles: HashMap<String, network::NetworkProfile>,
+    #[serde(skip)]
+    pub adapters: Vec<String>,
 
     // Private fields:
     #[serde(skip)]
@@ -22,8 +24,6 @@ pub struct NetProfiler {
     profile_builder: bool,
     #[serde(skip)]
     builder: network::NetworkProfile,
-    #[serde(skip)]
-    pub adapters: Vec<String>,
 }
 
 impl NetProfiler {
@@ -49,9 +49,36 @@ impl eframe::App for NetProfiler {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Check for file dialog events
+        self.file_dialog.update(ctx);
+        if let Some(file_path) = self.file_dialog.take_selected() {
+            // Set the file extension to .nprf
+            if self.import_export {
+                // Import the file
+                if let Ok(profiles) = serde_json::from_str::<HashMap<String, network::NetworkProfile>>(&std::fs::read_to_string(&file_path).unwrap()) {
+                    for (name, profile) in profiles {
+                        self.profiles.insert(name, profile);
+                    }
+                }
+            } else {
+                // Export the file
+                let file_path = PathBuf::from(file_path).with_extension("nprf");
+                let profiles = serde_json::to_string(&self.profiles).unwrap();
+                match std::fs::write(&file_path, profiles) {
+                    Ok(_) => println!("File saved successfully"),
+                    Err(e) => println!("Error saving file: {}", e),
+                }
+            }
+        }
+
         // Profile Builder
         if self.profile_builder {
             egui::Window::new("Profile Builder").show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("Profile Name:");
+                    ui.text_edit_singleline(&mut self.builder.name);
+                });
+
                 display_profile(&mut self.builder, ui, &self.adapters);
 
                 ui.horizontal(|ui| {
@@ -71,11 +98,11 @@ impl eframe::App for NetProfiler {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
                     if ui.button("Import").clicked() {
-                        // self.import_export = true;
+                        self.import_export = true;
                         self.file_dialog.select_file();
                     }
                     if ui.button("Export").clicked() {
-                        // self.import_export = false;
+                        self.import_export = false;
                         self.file_dialog.save_file();
                     }
                 });
@@ -88,25 +115,6 @@ impl eframe::App for NetProfiler {
                     self.profile_builder = true;
                 }
             });
-
-            // Check for file dialog events
-            self.file_dialog.update(ctx);
-            if let Some(file_path) = self.file_dialog.take_selected() {
-                // Set the file extension to .nprf
-                let file_path = PathBuf::from(file_path).with_extension("nprf");
-                if self.import_export {
-                    // Import the file
-                    if let Ok(profiles) = serde_json::from_str::<HashMap<String, network::NetworkProfile>>(&std::fs::read_to_string(&file_path).unwrap()) {
-                        for (name, profile) in profiles {
-                            self.profiles.insert(name, profile);
-                        }
-                    }
-                } else {
-                    // Export the file
-                    let profiles = serde_json::to_string(&self.profiles).unwrap();
-                    std::fs::write(&file_path, profiles).unwrap();
-                }
-            }
         });
 
         egui::CentralPanel::default().show(ctx, move |ui| {
@@ -136,10 +144,6 @@ impl eframe::App for NetProfiler {
 }
 
 fn display_profile(profile: &mut network::NetworkProfile, ui: &mut egui::Ui, adapters: &Vec<String>) {
-    ui.horizontal(|ui| {
-        ui.label("Profile Name:");
-        ui.text_edit_singleline(&mut profile.name);
-    });
     egui::ComboBox::from_label("Adapter")
         .selected_text(&profile.adapter)
         .show_ui(ui, |ui| {
@@ -157,10 +161,22 @@ fn display_profile(profile: &mut network::NetworkProfile, ui: &mut egui::Ui, ada
     ui.text_edit_singleline(&mut profile.gateway);
     ui.label("DNS Provider: ");
     ui.horizontal(|ui| {
-        ui.radio_value(&mut profile.dns_provider, network::DNSProvider::Quad9, "Quad9");
-        ui.radio_value(&mut profile.dns_provider, network::DNSProvider::Google, "Google");
-        ui.radio_value(&mut profile.dns_provider, network::DNSProvider::Cloudflare, "Cloudflare");
-        ui.radio_value(&mut profile.dns_provider, network::DNSProvider::OpenDNS, "OpenDNS");
+        ui.radio_value(&mut profile.dns_provider, network::DNSProvider::Quad9, "Quad9").on_hover_ui(|ui| {
+            ui.style_mut().interaction.selectable_labels = true;
+            ui.label("9.9.9.9\n149.112.112.112\n(Recommended)");
+        });
+        ui.radio_value(&mut profile.dns_provider, network::DNSProvider::Google, "Google").on_hover_ui(|ui| {
+            ui.style_mut().interaction.selectable_labels = true;
+            ui.label("8.8.8.8\n8.8.4.4");
+        });
+        ui.radio_value(&mut profile.dns_provider, network::DNSProvider::Cloudflare, "Cloudflare").on_hover_ui(|ui| {
+            ui.style_mut().interaction.selectable_labels = true;
+            ui.label("1.1.1.2\n1.0.0.2");
+        });
+        ui.radio_value(&mut profile.dns_provider, network::DNSProvider::OpenDNS, "OpenDNS").on_hover_ui(|ui| {
+            ui.style_mut().interaction.selectable_labels = true;
+            ui.label("208.67.222.222\n208.67.220.220");
+        });
         ui.radio_value(&mut profile.dns_provider, network::DNSProvider::Custom, "Custom");
     });
     if profile.dns_provider == network::DNSProvider::Custom {
