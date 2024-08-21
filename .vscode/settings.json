@@ -1,3 +1,4 @@
 {
-    "rust-analyzer.cargo.extraArgs": ["--profile", "rust-analyzer"]
+    "rust-analyzer.cargo.extraArgs": ["--profile", "rust-analyzer"],
+    "editor.inlayHints.enabled": "offUnlessPressed"
 }
