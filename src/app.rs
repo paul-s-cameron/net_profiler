@@ -209,6 +209,7 @@ fn display_profile(profile: &mut network::NetworkProfile, ui: &mut egui::Ui, ada
         .show(ui, |ui| {
             let label = ui.label(RichText::new("DNS Provider: ").color(Color32::WHITE));
             ui.horizontal(|ui| {
+                ui.radio_value(&mut profile.dns_provider, network::DNSProvider::None, "None");
                 ui.radio_value(&mut profile.dns_provider, network::DNSProvider::Quad9, "Quad9").on_hover_ui(|ui| {
                     ui.style_mut().interaction.selectable_labels = true;
                     ui.label(RichText::new("9.9.9.9\n149.112.112.112\n(Recommended)").color(Color32::WHITE));
