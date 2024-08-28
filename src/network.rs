@@ -16,6 +16,11 @@ pub struct NetworkProfile {
 
 impl NetworkProfile {
     pub fn load(&self) {
+        // Check if adapter is blank
+        if self.adapter.is_empty() {
+            return;
+        }
+
         // Set the windows adapters values to the profile values
         let adapter = self.adapter.clone();
 
