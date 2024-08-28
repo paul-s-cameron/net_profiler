@@ -33,6 +33,7 @@ impl NetworkProfile {
             DNSProvider::Cloudflare => vec!["1.1.1.2","1.0.0.2"],
             DNSProvider::OpenDNS => vec!["208.67.222.222","208.67.220.220"],
             DNSProvider::Custom => vec![self.primary_dns.as_str(), self.secondary_dns.as_str()],
+            _ => vec!["",""],
         };
 
         // Set IP subnet and gateway
@@ -46,6 +47,7 @@ impl NetworkProfile {
             .expect("Failed to set DNS servers");
 
         // Set DNS servers
+        if let DNSProvider::None = self.dns_provider { return }
         let _output = Command::new("powershell")
             .arg("-Command")
             .arg(format!(
@@ -73,6 +75,7 @@ impl Into<serde_json::Value> for NetworkProfile {
 #[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DNSProvider {
     #[default]
+    None,
     Quad9,
     Google,
     Cloudflare,
