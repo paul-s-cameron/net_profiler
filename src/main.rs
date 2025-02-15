@@ -5,6 +5,8 @@ use std::process::Command;
 
 use network_interface::{NetworkInterface, NetworkInterfaceConfig};
 
+#[macro_use]
+mod utils;
 
 mod app;
 mod network;
