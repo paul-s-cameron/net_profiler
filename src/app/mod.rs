@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
 use eframe::egui;
-use egui_file_dialog::FileDialog;
+use egui_file_dialog::{DialogMode, FileDialog};
 use egui::{Color32, RichText};
-use load::ProfileLoader;
+use loader::ProfileLoader;
 
 mod profile;
 use profile::show_profile;
-mod load;
+mod loader;
 
 use net_profiler::NetworkProfile;
 
@@ -19,8 +19,6 @@ pub struct NetProfiler {
 
     #[serde(skip)]
     file_dialog: FileDialog,
-    #[serde(skip)]
-    import_export: bool, // 0 = import, 1 = export
     #[serde(skip)]
     builder: Option<NetworkProfile>,
     #[serde(skip)]
@@ -50,45 +48,50 @@ impl eframe::App for NetProfiler {
 
         // Profile import and export
         if let Some(file_path) = self.file_dialog.take_selected() {
-            if self.import_export {
-                // Import the file
-                if let Ok(mut profiles) = serde_json::from_str(&std::fs::read_to_string(&file_path).unwrap()) {
-                    self.profiles.append(&mut profiles);
+            match self.file_dialog.mode() {
+                DialogMode::SelectFile => {
+                    if let Ok(mut profiles) = serde_json::from_str(&std::fs::read_to_string(&file_path).unwrap()) {
+                        self.profiles.append(&mut profiles);
+                    }
                 }
-            } else {
-                // Export the file
-                let file_path = PathBuf::from(file_path).with_extension("nprf");
-                let profiles = serde_json::to_string(&self.profiles).unwrap();
-                match std::fs::write(&file_path, profiles) {
-                    Ok(_) => println!("File saved successfully"),
-                    Err(e) => println!("Error saving file: {}", e),
+                DialogMode::SaveFile => {
+                    let file_path = PathBuf::from(file_path).with_extension("nprf");
+                    let profiles = serde_json::to_string(&self.profiles).unwrap();
+                    match std::fs::write(&file_path, profiles) {
+                        Ok(_) => println!("File saved successfully"),
+                        Err(e) => println!("Error saving file: {}", e),
+                    }
                 }
+                _ => {}
             }
         }
 
         // Profile Builder
         let mut finished = false;
         if let Some(ref mut builder) = self.builder {
-            egui::Window::new("Profile Builder").show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    ui.heading("Name:");
-                    ui.text_edit_singleline(&mut builder.name);
-                });
+            egui::Window::new("Profile Builder")
+                .collapsible(false)
+                .show(ctx, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.heading("Name:");
+                        ui.text_edit_singleline(&mut builder.name);
+                    });
 
-                ui.separator();
+                    ui.separator();
 
-                show_profile(ui, builder);
+                    show_profile(ui, builder);
 
-                ui.horizontal(|ui| {
-                    if ui.button("Create").clicked() {
-                        self.profiles.push(builder.clone());
-                        finished = true;
-                    }
-                    if ui.button("Cancel").clicked() {
-                        finished = true;
-                    }
-                });
-            });
+                    ui.horizontal(|ui| {
+                        if ui.button("Create").clicked() {
+                            self.profiles.push(builder.clone());
+                            finished = true;
+                        }
+                        if ui.button("Cancel").clicked() {
+                            finished = true;
+                        }
+                    });
+                }
+            );
         }
         if finished {
             self.builder = None;
@@ -99,11 +102,9 @@ impl eframe::App for NetProfiler {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
                     if ui.button("Import").clicked() {
-                        self.import_export = true;
                         self.file_dialog.select_file();
                     }
                     if ui.button("Export").clicked() {
-                        self.import_export = false;
                         self.file_dialog.save_file();
                     }
                 });
