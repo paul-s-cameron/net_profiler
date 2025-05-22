@@ -67,26 +67,42 @@ pub fn show_profile(ui: &mut egui::Ui, profile: &mut NetworkProfile) {
     ui.separator();
 
     let label = ui.heading("DNS Provider");
-    ui.horizontal(|ui| {
-        ui.radio_value(&mut profile.dns, DNS::DHCP, "DHCP");
-        ui.radio_value(&mut profile.dns, DNS::Quad9, "Quad9").on_hover_ui(|ui| {
-            ui.style_mut().interaction.selectable_labels = true;
-            ui.label(RichText::new(format!("{}\n{}", DNS::QUAD9.0, DNS::QUAD9.1)).color(Color32::WHITE));
-        }).labelled_by(label.id);
-        ui.radio_value(&mut profile.dns, DNS::Google, "Google").on_hover_ui(|ui| {
-            ui.style_mut().interaction.selectable_labels = true;
-            ui.label(RichText::new(format!("{}\n{}", DNS::GOOGLE.0, DNS::GOOGLE.1)).color(Color32::WHITE));
-        }).labelled_by(label.id);
-        ui.radio_value(&mut profile.dns, DNS::Cloudflare, "Cloudflare").on_hover_ui(|ui| {
-            ui.style_mut().interaction.selectable_labels = true;
-            ui.label(RichText::new(format!("{}\n{}", DNS::CLOUDFLARE.0, DNS::CLOUDFLARE.1)).color(Color32::WHITE));
-        }).labelled_by(label.id);
-        ui.radio_value(&mut profile.dns, DNS::OpenDNS, "OpenDNS").on_hover_ui(|ui| {
-            ui.style_mut().interaction.selectable_labels = true;
-            ui.label(RichText::new(format!("{}\n{}", DNS::OPENDNS.0, DNS::OPENDNS.1)).color(Color32::WHITE));
-        }).labelled_by(label.id);
-        ui.radio_value(&mut profile.dns, DNS::Custom { primary: "".into(), secondary: "".into() }, "Custom");
-    });
+    egui::ComboBox::from_id_source("dns_selector")
+        .selected_text(profile.dns.to_string())
+        .show_ui(ui, |ui| {
+            ui.selectable_value(&mut profile.dns, DNS::DHCP, DNS::DHCP.to_string());
+            ui.selectable_value(&mut profile.dns, DNS::Quad9, DNS::Quad9.to_string())
+                .on_hover_text(RichText::new(format!("{}\n{}", DNS::QUAD9.0, DNS::QUAD9.1)));
+            ui.selectable_value(&mut profile.dns, DNS::Google, DNS::Google.to_string())
+                .on_hover_text(RichText::new(format!("{}\n{}", DNS::GOOGLE.0, DNS::GOOGLE.1)));
+            ui.selectable_value(&mut profile.dns, DNS::Cloudflare, DNS::Cloudflare.to_string())
+                .on_hover_text(RichText::new(format!("{}\n{}", DNS::CLOUDFLARE.0, DNS::CLOUDFLARE.1)));
+            ui.selectable_value(&mut profile.dns, DNS::OpenDNS, DNS::OpenDNS.to_string())
+                .on_hover_text(RichText::new(format!("{}\n{}", DNS::OPENDNS.0, DNS::OPENDNS.1)));
+            ui.selectable_value(&mut profile.dns, DNS::Custom { primary: "".into(), secondary: "".into() }, "Custom");
+        }
+    );
+
+    // ui.horizontal(|ui| {
+    //     ui.radio_value(&mut profile.dns, DNS::DHCP, "DHCP");
+    //     ui.radio_value(&mut profile.dns, DNS::Quad9, "Quad9").on_hover_ui(|ui| {
+    //         ui.style_mut().interaction.selectable_labels = true;
+    //         ui.label(RichText::new(format!("{}\n{}", DNS::QUAD9.0, DNS::QUAD9.1)).color(Color32::WHITE));
+    //     }).labelled_by(label.id);
+    //     ui.radio_value(&mut profile.dns, DNS::Google, "Google").on_hover_ui(|ui| {
+    //         ui.style_mut().interaction.selectable_labels = true;
+    //         ui.label(RichText::new(format!("{}\n{}", DNS::GOOGLE.0, DNS::GOOGLE.1)).color(Color32::WHITE));
+    //     }).labelled_by(label.id);
+    //     ui.radio_value(&mut profile.dns, DNS::Cloudflare, "Cloudflare").on_hover_ui(|ui| {
+    //         ui.style_mut().interaction.selectable_labels = true;
+    //         ui.label(RichText::new(format!("{}\n{}", DNS::CLOUDFLARE.0, DNS::CLOUDFLARE.1)).color(Color32::WHITE));
+    //     }).labelled_by(label.id);
+    //     ui.radio_value(&mut profile.dns, DNS::OpenDNS, "OpenDNS").on_hover_ui(|ui| {
+    //         ui.style_mut().interaction.selectable_labels = true;
+    //         ui.label(RichText::new(format!("{}\n{}", DNS::OPENDNS.0, DNS::OPENDNS.1)).color(Color32::WHITE));
+    //     }).labelled_by(label.id);
+    //     ui.radio_value(&mut profile.dns, DNS::Custom { primary: "".into(), secondary: "".into() }, "Custom");
+    // });
     match &mut profile.dns {
         DNS::Custom { primary, secondary } => {
             let label = ui.label(RichText::new("Primary DNS: ").color(Color32::WHITE));
