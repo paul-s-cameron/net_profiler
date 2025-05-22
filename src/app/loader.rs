@@ -19,43 +19,39 @@ impl ProfileLoader {
 
         egui::Window::new("profile_loader")
             .title_bar(false)
+            .fixed_rect(
+                egui::Rect::from_center_size(
+                    ctx.screen_rect().center(),
+                    egui::Vec2::new(ctx.screen_rect().size().x / 2., 80.)
+                )
+            )
             .show(ctx, |ui| {
-                egui::TopBottomPanel::top("interface_selector")
-                    .resizable(false)
-                    .show_inside(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            ui.label("Select Interface:");
-
+                egui::Frame::default()
+                    .inner_margin(6.)
+                    .show(ui, |ui| {
+                        ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
                             egui::ComboBox::from_id_source("interface_selector")
-                                .selected_text(self.selected_interface.as_ref().map_or("None".to_string(), |i| i.name.clone()))
+                                .width(ui.available_width())
+                                .selected_text(self.selected_interface.as_ref().map_or("Select an interface".to_string(), |i| i.name.clone()))
                                 .show_ui(ui, |ui| {
                                     for interface in &self.interfaces {
                                         ui.selectable_value(&mut self.selected_interface, Some(interface.clone()), &interface.name);
                                     }
                                 }
                             );
-                        });
-                        ui.add_space(10.);
-                    }
-                );
-                egui::CentralPanel::default()
-                    .show_inside(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            //TODO: Show information about the selected interface
-                        });
-                    }
-                );
-                egui::TopBottomPanel::bottom("menu")
-                    .resizable(false)
-                    .show_inside(ui, |ui| {
-                        ui.add_space(10.);
-                        ui.horizontal(|ui| {
-                            if ui.button("Load").clicked() {
-                                self.hide();
-                            }
-                            if ui.button("Cancel").clicked() {
-                                self.hide();
-                            }
+                        
+                            ui.columns(2, |columns| {
+                                columns[0].with_layout(egui::Layout::centered_and_justified(egui::Direction::LeftToRight), |ui| {
+                                    if ui.button("Apply").clicked() {
+                                        
+                                    }
+                                });
+                                columns[1].with_layout(egui::Layout::centered_and_justified(egui::Direction::RightToLeft), |ui| {
+                                    if ui.button("Cancel").clicked() {
+                                        self.hide();
+                                    }
+                                });
+                            });
                         });
                     }
                 );
