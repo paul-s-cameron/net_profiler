@@ -1,6 +1,5 @@
 use std::{
-    process::{Command, Stdio},
-    net::{IpAddr, Ipv4Addr},
+    fmt::Display, net::{IpAddr, Ipv4Addr}, process::{Command, Stdio}
 };
 
 pub type Result<T> = core::result::Result<T, Error>;
@@ -63,6 +62,19 @@ impl From<(&'static str, &'static str)> for DNS {
             primary: value.0.into(),
             secondary: value.0.into(),
         }
+    }
+}
+
+impl Display for DNS {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", match self {
+            DNS::DHCP => "DHCP",
+            DNS::Quad9 => "Quad9",
+            DNS::Google => "Google",
+            DNS::Cloudflare => "Cloudflare",
+            DNS::OpenDNS => "OpenDNS",
+            DNS::Custom { primary: _, secondary: _ } => "Custom"
+        })
     }
 }
 
