@@ -171,6 +171,7 @@ impl eframe::App for NetProfiler {
         });
 
         egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
+            ui.add_space(1.);
             ui.label(format!("Net Profiler v{} by Paul Cameron", env!("CARGO_PKG_VERSION")));
         });
     }
