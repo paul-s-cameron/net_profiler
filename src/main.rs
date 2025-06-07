@@ -5,15 +5,14 @@ mod app;
 ///TODO: 
 /// 1. Abstract network commands for Windows and Linux
 /// *2. Remove adapter from profile and create popup to select adapter to apply the profile to
-/// 3. Setup egui_toast for notifications
+/// *3. Setup egui_toast for notifications
+/// 4. Logging to file
 
 fn main()  -> eframe::Result {
+    simple_logger::SimpleLogger::new().env().init().unwrap();
+
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default(),
-            // .with_icon(
-            //     eframe::icon_data::from_png_bytes(&include_bytes!("../assets/icon-256.png")[..])
-            //         .expect("Failed to load icon"),
-            // ),
         ..Default::default()
     };
     eframe::run_native(

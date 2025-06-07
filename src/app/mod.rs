@@ -1,18 +1,18 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, vec};
 
 use eframe::egui;
-use egui_file_dialog::{DialogMode, FileDialog};
 use egui::{Color32, RichText};
-use loader::ProfileLoader;
+use egui_file_dialog::{DialogMode, FileDialog};
+use egui_toast::{Toast, Toasts, ToastKind};
 
 mod profile;
 use profile::show_profile;
 mod loader;
+use loader::ProfileLoader;
 
 use net_profiler::NetworkProfile;
 
 #[derive(serde::Deserialize, serde::Serialize)]
-#[derive(Default)]
 #[serde(default)]
 pub struct NetProfiler {
     pub profiles: Vec<NetworkProfile>,
@@ -23,6 +23,22 @@ pub struct NetProfiler {
     builder: Option<NetworkProfile>,
     #[serde(skip)]
     loader: ProfileLoader,
+    #[serde(skip)]
+    toasts: Toasts,
+}
+
+impl Default for NetProfiler {
+    fn default() -> Self {
+        Self {
+            profiles: vec![],
+            file_dialog: FileDialog::default(),
+            builder: None,
+            loader: ProfileLoader::default(),
+            toasts: Toasts::new()
+                .anchor(egui::Align2::RIGHT_TOP, (-10., 10.))
+                .direction(egui::Direction::TopDown),
+        }
+    }
 }
 
 impl NetProfiler {
@@ -47,19 +63,45 @@ impl eframe::App for NetProfiler {
         self.loader.update(ctx);
 
         // Profile import and export
-        if let Some(file_path) = self.file_dialog.take_selected() {
+        if let Some(file_path) = self.file_dialog.take_picked() {
             match self.file_dialog.mode() {
-                DialogMode::SelectFile => {
-                    if let Ok(mut profiles) = serde_json::from_str(&std::fs::read_to_string(&file_path).unwrap()) {
-                        self.profiles.append(&mut profiles);
+                DialogMode::PickFile => {
+                    match serde_json::from_str(&std::fs::read_to_string(&file_path).unwrap()) {
+                        Ok(mut profiles) => {
+                            self.profiles.append(&mut profiles);
+                            self.toasts.add(Toast {
+                                kind: ToastKind::Success,
+                                text: "Successfully imported profiles".into(),
+                                ..Default::default()
+                            });
+                        }
+                        Err(e) => {
+                            self.toasts.add(Toast {
+                                kind: ToastKind::Error,
+                                text: "Error importing profiles, check log".into(),
+                                ..Default::default()
+                            });
+                        }
                     }
                 }
                 DialogMode::SaveFile => {
                     let file_path = PathBuf::from(file_path).with_extension("nprf");
                     let profiles = serde_json::to_string(&self.profiles).unwrap();
                     match std::fs::write(&file_path, profiles) {
-                        Ok(_) => println!("File saved successfully"),
-                        Err(e) => println!("Error saving file: {}", e),
+                        Ok(_) => {
+                            self.toasts.add(Toast {
+                                kind: ToastKind::Success,
+                                text: "Successfully saved profiles".into(),
+                                ..Default::default()
+                            });
+                        },
+                        Err(e) => {
+                            self.toasts.add(Toast {
+                                kind: ToastKind::Error,
+                                text: "Error saving profiles, check log".into(),
+                                ..Default::default()
+                            });
+                        },
                     }
                 }
                 _ => {}
@@ -84,6 +126,11 @@ impl eframe::App for NetProfiler {
                     ui.horizontal(|ui| {
                         if ui.button("Create").clicked() {
                             self.profiles.push(builder.clone());
+                            self.toasts.add(Toast {
+                                kind: ToastKind::Success,
+                                text: "Successfully created profile".into(),
+                                ..Default::default()
+                            });
                             finished = true;
                         }
                         if ui.button("Cancel").clicked() {
@@ -102,7 +149,7 @@ impl eframe::App for NetProfiler {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
                     if ui.button("Import").clicked() {
-                        self.file_dialog.select_file();
+                        self.file_dialog.pick_file();
                     }
                     if ui.button("Export").clicked() {
                         self.file_dialog.save_file();
@@ -121,7 +168,7 @@ impl eframe::App for NetProfiler {
             });
         });
 
-        egui::CentralPanel::default().show(ctx, move |ui| {
+        egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 let mut profiles_to_remove: Vec<usize> = Vec::new();
 
@@ -133,7 +180,7 @@ impl eframe::App for NetProfiler {
                             .default_open(false)
                             .show(ui, |ui| {
                                 egui::Frame::default()
-                                    .inner_margin(egui::Margin::same(10.0))
+                                    .inner_margin(egui::Margin::same(10))
                                     .show(ui, |ui| {
                                         show_profile(ui, profile);
                                     });
@@ -142,7 +189,7 @@ impl eframe::App for NetProfiler {
 
                         // Profile actions
                         egui::Frame::default()
-                            .inner_margin(egui::Margin::same(4.0))
+                            .inner_margin(egui::Margin::same(4))
                             .show(ui, |ui| {
                                 ui.horizontal(|ui| {
                                     if ui.button(RichText::new("Load").color(Color32::WHITE).size(14.)).clicked() {
@@ -172,7 +219,14 @@ impl eframe::App for NetProfiler {
 
         egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
             ui.add_space(1.);
-            ui.label(format!("Net Profiler v{} by Paul Cameron", env!("CARGO_PKG_VERSION")));
+            ui.horizontal(|ui| {
+                ui.label(format!("Net Profiler v{} by Paul Cameron", env!("CARGO_PKG_VERSION")));
+                if ui.link("source").clicked() {
+                    //TODO: Open github page
+                }
+            });
         });
+
+        self.toasts.show(ctx);
     }
 }

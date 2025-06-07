@@ -10,14 +10,17 @@ unused = { level = "allow", priority = -1 }
 
 [dependencies]
 # UI
-eframe = { version = "0.28.1", features = ["persistence"] }
-egui = "0.28.1"
-egui-file-dialog = "0.6.0"
+eframe = { version = "0.31.1", features = ["persistence"] }
+egui = "0.31.1"
+egui-file-dialog = "0.10.0"
+egui-toast = "0.17.0"
 # Utils
-network-interface = "2.0.0"
-regex = "1.11.1"
+network-interface = "2"
+regex = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+log = "0.4"
+simple_logger = "5"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 utfx = { version = "0.1.0", optional = true }

@@ -124,57 +124,22 @@ impl From<(&'static str, &'static str)> for IP {
     }
 }
 
-pub fn load_profile(profile: &NetworkProfile) {
-    // // Check if adapter is blank
-    // if self.adapter.is_empty() {
-    //     return;
-    // }
+pub fn load_profile(profile: &NetworkProfile, adapter: &str) {
+    if let Some(first_address) = profile.ips.first() {
+        let gateway = profile.gateways.first().map(|x| x.as_str());
+        set_ip_addr(adapter, &first_address.address, &first_address.subnet, gateway);
+        for ip in profile.ips.iter().skip(1) {
+            add_ip_addr(adapter, &ip.address, &ip.subnet);
+        }
+    }
 
-    // let adapter = self.adapter.as_str();
-    // let dns_provider: Option<DNS> = match self.dns_provider {
-    //     DNSProvider::Quad9 => Some(("9.9.9.9","149.112.112.112").into()),
-    //     DNSProvider::Google => Some(("8.8.8.8","8.8.4.4").into()),
-    //     DNSProvider::Cloudflare => Some(("1.1.1.2","1.0.0.2").into()),
-    //     DNSProvider::OpenDNS => Some(("208.67.222.222","208.67.220.220").into()),
-    //     DNSProvider::Custom => Some(self.custom_dns.clone()),
-    //     _ => None,
-    // };
+    if profile.gateways.len() > 1 {
+        for (i, gateway) in profile.gateways.iter().skip(1).enumerate() {
+            add_gateway(adapter, gateway, i+1);
+        }
+    }
 
-    // // Set IP subnet and gateway
-    // if let Some(first_address) = self.ips.first() {
-    //     let gateway = self.gateways.first().map(|x| x.as_str());
-    //     set_ip_addr(adapter, &first_address.address, &first_address.subnet, gateway);
-    //     for ip in self.ips.iter().skip(1) {
-    //         add_ip_addr(adapter, &ip.address, &ip.subnet);
-    //     }
-    // }
-
-    // if self.gateways.len() > 1 {
-    //     for (i, gateway) in self.gateways.iter().skip(1).enumerate() {
-    //         add_gateway(adapter, gateway, i+1);
-    //     }
-    // }
-
-    // // Set DNS servers
-    // if let Some(dns) = dns_provider {
-    //     let output = Command::new("powershell")
-    //         .arg("-Command")
-    //         .arg(format!(
-    //             "netsh interface ip set dns \"{}\" static {} primary validate=no; netsh interface ip add dns \"{}\" {} validate=no",
-    //             adapter, dns.primary, adapter, dns.secondary
-    //         ))
-    //         .output()
-    //         .expect("Failed to set DNS servers");
-    // } else {
-    //     let output = Command::new("powershell")
-    //         .arg("-Command")
-    //         .arg(format!(
-    //             "netsh interface ip set dnsservers \"{}\" source=dhcp",
-    //             adapter,
-    //         ))
-    //         .output()
-    //         .expect("Failed to set DNS servers");
-    // }
+    set_dns(adapter, &profile.dns);
 
     // // Set Mac Address
     // if !self.mac_address.is_empty() {
@@ -219,9 +184,11 @@ pub fn set_ip_addr(
                     "Error setting primary IP address: {}",
                     String::from_utf8_lossy(&output.stderr)
                 );
+                return Err(String::from_utf8_lossy(&output.stderr).into());
             }
-            Err(err) => {
-                eprintln!("Failed to execute netsh command: {}", err);
+            Err(e) => {
+                eprintln!("Failed to execute netsh command: {}", e);
+                return Err(e.into());
             }
         }
     }
@@ -261,9 +228,11 @@ pub fn add_ip_addr(
                     "Error adding IP address: {}",
                     String::from_utf8_lossy(&output.stderr)
                 );
+                return Err(String::from_utf8_lossy(&output.stderr).into());
             }
-            Err(err) => {
-                eprintln!("Failed to execute netsh command: {}", err);
+            Err(e) => {
+                eprintln!("Failed to execute netsh command: {}", e);
+                return Err(e.into());
             }
         }
     }
@@ -296,22 +265,67 @@ pub fn add_gateway(
 
         match output {
             Ok(output) if output.status.success() => {
-                println!("Successfully added gateway: {} with metric {} on {}", gateway, metric, adapter);
+                log::info!("Successfully added gateway: {} with metric {} on {}", gateway, metric, adapter);
             }
             Ok(output) => {
-                eprintln!(
+                log::error!(
                     "Error adding gateway: {}",
                     String::from_utf8_lossy(&output.stderr)
                 );
+                return Err(String::from_utf8_lossy(&output.stderr).into());
             }
-            Err(err) => {
-                eprintln!("Failed to execute netsh command: {}", err);
+            Err(e) => {
+                log::error!("Failed to execute netsh command: {}", e);
+                return Err(e.into());
             }
         }
     }
     #[cfg(target_os = "linux")]
     {
         //TODO: Implement Linux command to add gateway
+    }
+
+    Ok(())
+}
+
+pub fn set_dns(
+    adapter: &str,
+    dns: &DNS
+) -> Result<()> {
+    #[cfg(target_os = "windows")]
+    {
+        match dns {
+            DNS::DHCP => {
+                match Command::new("powershell")
+                    .arg("-Command")
+                    .arg(format!(
+                        "netsh interface ip set dnsservers \"{}\" source=dhcp",
+                        adapter,
+                    ))
+                    .output() {
+                        Err(e) => {
+                            log::error!("{}", e);
+                            return Err(e.into());
+                        }
+                        Ok(_) => {}
+                    }
+            }
+            _ => {
+                match Command::new("powershell")
+                    .arg("-Command")
+                    .arg(format!(
+                        "netsh interface ip set dns \"{}\" static {} primary validate=no; netsh interface ip add dns \"{}\" {} validate=no",
+                        adapter, dns.primary().unwrap(), adapter, dns.secondary().unwrap()
+                    ))
+                    .output() {
+                        Err(e) => {
+                            log::error!("{}", e);
+                            return Err(e.into());
+                        }
+                        Ok(_) => {}
+                    }
+            }
+        }
     }
 
     Ok(())

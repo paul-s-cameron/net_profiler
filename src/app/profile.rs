@@ -31,7 +31,7 @@ pub fn show_profile(ui: &mut egui::Ui, profile: &mut NetworkProfile) {
     }
 
     if ui.button("+").clicked() {
-        profile.ips.push(("","").into());
+        profile.ips.push(("192.168.","255.255.255.0").into());
     }
 
     ui.add_space(5.0);
@@ -67,7 +67,7 @@ pub fn show_profile(ui: &mut egui::Ui, profile: &mut NetworkProfile) {
     ui.separator();
 
     let label = ui.heading("DNS Provider");
-    egui::ComboBox::from_id_source("dns_selector")
+    egui::ComboBox::from_id_salt("dns_selector")
         .selected_text(profile.dns.to_string())
         .show_ui(ui, |ui| {
             ui.selectable_value(&mut profile.dns, DNS::DHCP, DNS::DHCP.to_string());
