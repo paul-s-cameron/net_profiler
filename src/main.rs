@@ -8,16 +8,20 @@ mod app;
 /// *3. Setup egui_toast for notifications
 /// 4. Logging to file
 
-fn main()  -> eframe::Result {
-    simple_logger::SimpleLogger::new().env().init().unwrap();
+fn main() {
+    simple_logging::log_to_file("net_profiler.log", log::LevelFilter::Info)
+        .expect("Failed to initialize logging");
 
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default(),
         ..Default::default()
     };
-    eframe::run_native(
+
+    if let Err(e) = eframe::run_native(
         "Net Profiler",
         native_options,
         Box::new(|cc| Ok(Box::new(app::NetProfiler::new(cc))))
-    )
+    ) {
+        log::error!("Failed to run the application: {}", e);
+    }
 }

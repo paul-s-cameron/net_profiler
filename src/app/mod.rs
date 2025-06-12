@@ -222,7 +222,9 @@ impl eframe::App for NetProfiler {
             ui.horizontal(|ui| {
                 ui.label(format!("Net Profiler v{} by Paul Cameron", env!("CARGO_PKG_VERSION")));
                 if ui.link("source").clicked() {
-                    //TODO: Open github page
+                    open::that(env!("CARGO_PKG_REPOSITORY")).unwrap_or_else(|_| {
+                        log::error!("Failed to open repository link");
+                    });
                 }
             });
         });
