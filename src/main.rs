@@ -1,4 +1,4 @@
-#![cfg_attr(all(not(debug_assertions), target_os = "windows"), windows_subsystem = "windows")]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app;
 
@@ -6,7 +6,7 @@ mod app;
 /// 1. Abstract network commands for Windows and Linux
 /// *2. Remove adapter from profile and create popup to select adapter to apply the profile to
 /// *3. Setup egui_toast for notifications
-/// 4. Logging to file
+/// *4. Logging to file
 
 fn main() {
     simple_logging::log_to_file("net_profiler.log", log::LevelFilter::Info)

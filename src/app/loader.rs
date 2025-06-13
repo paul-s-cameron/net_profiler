@@ -43,7 +43,7 @@ impl ProfileLoader {
                                     .inner_margin(6.)
                                     .show(ui, |ui| {
                                         ui.vertical_centered(|ui| {
-                                            egui::CollapsingHeader::new("Addresses")
+                                            egui::CollapsingHeader::new("Current Configuration")
                                                 .default_open(true)
                                                 .show(ui, |ui| {
                                                     for addr in &interface.addr {
@@ -57,12 +57,26 @@ impl ProfileLoader {
                                                                 ));
                                                             }
                                                             Addr::V6(if_addr) => {
-        
+                                                                ui.label(format!(
+                                                                    "Ipv6: {}\nBroadcast: {}\nNetmask: {}",
+                                                                    if_addr.ip,
+                                                                    if_addr.broadcast.map_or("None".to_string(), |v| v.to_string()),
+                                                                    if_addr.netmask.map_or("None".to_string(), |v| v.to_string())
+                                                                ));
                                                             }
                                                         }
                                                     }
                                                 }
                                             );
+                                            // egui::CollapsingHeader::new("Profile Configuration")
+                                            //     .default_open(true)
+                                            //     .show(ui, |ui| {
+                                            //         ui.label(format!("Profile: {}", self.profile.name));
+                                            //         ui.label(format!("IPs: {}", self.profile.ips.len()));
+                                            //         ui.label(format!("Gateways: {}", self.profile.gateways.len()));
+                                            //         ui.label(format!("DNS: {}", self.profile.dns.to_string()));
+                                            //     }
+                                            // );
                                         });
                                     }
                                 );
