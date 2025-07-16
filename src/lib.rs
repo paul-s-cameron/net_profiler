@@ -194,7 +194,47 @@ pub fn set_ip_addr(
     }
     #[cfg(target_os = "linux")]
     {
-        //TODO: Implement Linux command to set IP address
+        let output = Command::new("ip")
+            .args([
+                "addr", "flush", "dev", adapter, 
+            ])
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::piped())
+            .output();
+
+        if let Err(e) = output {
+            eprintln!("Failed to flush IP addresses on {}: {}", adapter, e);
+            return Err(e.into());
+        }
+
+        let output = Command::new("ip")
+            .args([
+                "addr", "add", format!("{}/{}", ip_address, subnet).as_str(),
+                "dev", adapter,
+            ])
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::piped())
+            .output();
+
+        match output {
+            Ok(output) if output.status.success() => {
+                println!(
+                    "Successfully set primary IP address: {} on {} (Gateway: {})",
+                    ip_address, adapter, gateway.unwrap_or("none")
+                );
+            }
+            Ok(output) => {
+                eprintln!(
+                    "Error setting primary IP address: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                return Err(String::from_utf8_lossy(&output.stderr).into());
+            }
+            Err(e) => {
+                eprintln!("Failed to execute ip command: {}", e);
+                return Err(e.into());
+            }
+        }
     }
 
     Ok(())
@@ -238,7 +278,31 @@ pub fn add_ip_addr(
     }
     #[cfg(target_os = "linux")]
     {
-        //TODO: Implement Linux command to add IP address
+        let output = Command::new("ip")
+            .args([
+                "addr", "add", format!("{}/{}", ip_address, subnet).as_str(),
+                "dev", adapter,
+            ])
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::piped())
+            .output();
+
+        match output {
+            Ok(output) if output.status.success() => {
+                println!("Successfully added IP address: {} on {}", ip_address, adapter);
+            }
+            Ok(output) => {
+                eprintln!(
+                    "Error adding IP address: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                return Err(String::from_utf8_lossy(&output.stderr).into());
+            }
+            Err(e) => {
+                eprintln!("Failed to execute ip command: {}", e);
+                return Err(e.into());
+            }
+        }
     }
 
     Ok(())
@@ -282,7 +346,30 @@ pub fn add_gateway(
     }
     #[cfg(target_os = "linux")]
     {
-        //TODO: Implement Linux command to add gateway
+        let output = Command::new("ip")
+            .args([
+                "route", "add", "default", "via", gateway, "dev", adapter, "metric", &metric.to_string(),
+            ])
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::piped())
+            .output();
+
+        match output {
+            Ok(output) if output.status.success() => {
+                log::info!("Successfully added gateway: {} with metric {} on {}", gateway, metric, adapter);
+            }
+            Ok(output) => {
+                log::error!(
+                    "Error adding gateway: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                return Err(String::from_utf8_lossy(&output.stderr).into());
+            }
+            Err(e) => {
+                log::error!("Failed to execute ip command: {}", e);
+                return Err(e.into());
+            }
+        }
     }
 
     Ok(())
@@ -324,6 +411,40 @@ pub fn set_dns(
                         }
                         Ok(_) => {}
                     }
+            }
+        }
+    }
+    #[cfg(target_os = "linux")]
+    {
+        match dns {
+            DNS::DHCP => {
+                match Command::new("nmcli")
+                    .args(["con", "modify", adapter, "ipv4.method", "auto"])
+                    .output() {
+                        Err(e) => {
+                            log::error!("{}", e);
+                            return Err(e.into());
+                        }
+                        Ok(_) => {}
+                    }
+            }
+            _ => {
+                if let Some((primary, secondary)) = dns.addresses() {
+                    match Command::new("nmcli")
+                        .args([
+                            "con", "modify", adapter,
+                            "ipv4.dns", &primary,
+                            "ipv4.dns-search", &secondary,
+                            "ipv4.method", "manual",
+                        ])
+                        .output() {
+                            Err(e) => {
+                                log::error!("{}", e);
+                                return Err(e.into());
+                            }
+                            Ok(_) => {}
+                        }
+                }
             }
         }
     }
