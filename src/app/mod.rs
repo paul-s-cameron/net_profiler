@@ -76,6 +76,7 @@ impl eframe::App for NetProfiler {
                             });
                         }
                         Err(e) => {
+                            log::error!("Error importing profiles: {}", e);
                             self.toasts.add(Toast {
                                 kind: ToastKind::Error,
                                 text: "Error importing profiles, check log".into(),
@@ -96,6 +97,7 @@ impl eframe::App for NetProfiler {
                             });
                         },
                         Err(e) => {
+                            log::error!("Error saving profiles: {}", e);
                             self.toasts.add(Toast {
                                 kind: ToastKind::Error,
                                 text: "Error saving profiles, check log".into(),

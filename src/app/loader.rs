@@ -18,12 +18,8 @@ impl ProfileLoader {
 
         egui::Window::new("profile_loader")
             .title_bar(false)
-            .fixed_rect(
-                egui::Rect::from_center_size(
-                    ctx.screen_rect().center(),
-                    egui::Vec2::new(ctx.screen_rect().size().x / 2., 80.)
-                )
-            )
+            .resizable(false)
+            .anchor(egui::Align2::CENTER_CENTER, (0., 0.))
             .show(ctx, |ui| {
                 egui::Frame::default()
                     .inner_margin(6.)
@@ -43,24 +39,58 @@ impl ProfileLoader {
                                     .inner_margin(6.)
                                     .show(ui, |ui| {
                                         ui.vertical_centered(|ui| {
-                                            egui::CollapsingHeader::new("Addresses")
+                                            egui::CollapsingHeader::new(format!("'{}' Configuration", self.profile.name))
                                                 .default_open(true)
                                                 .show(ui, |ui| {
-                                                    for addr in &interface.addr {
-                                                        match addr {
-                                                            Addr::V4(if_addr) => {
-                                                                ui.label(format!(
-                                                                    "Ipv4: {}\nBroadcast: {}\nNetmask: {}",
-                                                                    if_addr.ip,
-                                                                    if_addr.broadcast.map_or("None".to_string(), |v| v.to_string()),
-                                                                    if_addr.netmask.map_or("None".to_string(), |v| v.to_string())
-                                                                ));
-                                                            }
-                                                            Addr::V6(if_addr) => {
-        
+                                                    ui.label(format!("Profile: {}", self.profile.name));
+
+                                                    egui::CollapsingHeader::new("IP Addresses")
+                                                        .default_open(true)
+                                                        .show(ui, |ui| {
+                                                            for ip in &self.profile.ips {
+                                                                ui.label(format!("IP: {}, Mask: {}", ip.address, ip.subnet));
                                                             }
                                                         }
-                                                    }
+                                                    );
+                                                    
+                                                    egui::CollapsingHeader::new("Gateways")
+                                                        .default_open(true)
+                                                        .show(ui, |ui| {
+                                                            for gateway in &self.profile.gateways {
+                                                                ui.label(format!("Gateway: {}", gateway));
+                                                            }
+                                                        }
+                                                    );
+
+                                                    ui.label(format!("DNS: {}", self.profile.dns.to_string()));
+                                                }
+                                            );
+                                            egui::CollapsingHeader::new("Current Configuration")
+                                                .default_open(true)
+                                                .show(ui, |ui| {
+                                                    egui::CollapsingHeader::new("IP Addresses")
+                                                        .default_open(true)
+                                                        .show(ui, |ui| {
+                                                            for addr in &interface.addr {
+                                                                match addr {
+                                                                    Addr::V4(if_addr) => {
+                                                                        ui.label(format!(
+                                                                            "Ipv4: {}, Mask: {}",
+                                                                            if_addr.ip,
+                                                                            if_addr.netmask.map_or("None".to_string(), |v| v.to_string())
+                                                                        ));
+                                                                    }
+                                                                    Addr::V6(if_addr) => {
+                                                                        ui.label(format!(
+                                                                            "Ipv6: {}, Mask: {}",
+                                                                            if_addr.ip,
+                                                                            if_addr.netmask.map_or("None".to_string(), |v| v.to_string())
+                                                                        ));
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    );
                                                 }
                                             );
                                         });
@@ -68,15 +98,23 @@ impl ProfileLoader {
                                 );
                             }
                             ui.columns(2, |columns| {
-                                columns[0].with_layout(egui::Layout::centered_and_justified(egui::Direction::LeftToRight), |ui| {
-                                    if ui.button("Apply").clicked() {
+                                columns[0].with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                    let button = ui.add_sized(
+                                        [ui.available_width(), 30.0],
+                                        egui::Button::new("Apply")
+                                    );
+                                    if button.clicked() {
                                         if let Some(interface) = &self.selected_interface {
                                             load_profile(&self.profile, &interface.name);
                                         }
                                     }
                                 });
-                                columns[1].with_layout(egui::Layout::centered_and_justified(egui::Direction::RightToLeft), |ui| {
-                                    if ui.button("Cancel").clicked() {
+                                columns[1].with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                    let button = ui.add_sized(
+                                        [ui.available_width(), 30.0],
+                                        egui::Button::new("Cancel")
+                                    );
+                                    if button.clicked() {
                                         self.close();
                                     }
                                 });
