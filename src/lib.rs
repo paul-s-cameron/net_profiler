@@ -5,6 +5,7 @@ use std::{
 pub type Result<T> = core::result::Result<T, Error>;
 pub type Error = Box<dyn std::error::Error>; // For early dev.
 
+
 #[derive(serde::Deserialize, serde::Serialize)]
 #[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(default)]
