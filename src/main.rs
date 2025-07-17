@@ -9,12 +9,6 @@ mod app;
 /// *4. Logging to file
 
 fn main() {
-    #[cfg(target_os = "linux")]
-    if let Err(e) = net_profiler::check_and_relaunch_elevated() {
-        eprintln!("Failed to check/elevate privileges: {}", e);
-        std::process::exit(1);
-    }
-    
     simple_logging::log_to_file("net_profiler.log", log::LevelFilter::Info).expect("Failed to initialize logging");
     
     // Log system information

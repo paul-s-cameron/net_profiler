@@ -5,58 +5,6 @@ use std::{
 pub type Result<T> = core::result::Result<T, Error>;
 pub type Error = Box<dyn std::error::Error>; // For early dev.
 
-/// Check if the application needs to be relaunched with elevated privileges
-/// Returns true if the application should continue running, false if it was relaunched
-pub fn check_and_relaunch_elevated() -> Result<bool> {
-    // Check if we're already running as root
-    let is_root = unsafe { libc::getuid() == 0 };
-    
-    if is_root {
-        // Already running as root, continue normal execution
-        Ok(true)
-    } else {
-        // Not root, need to relaunch with elevated privileges
-        println!("Network configuration requires elevated privileges. Relaunching with pkexec...");
-        
-        // Get the current executable path
-        let current_exe = std::env::current_exe()
-            .map_err(|e| format!("Failed to get current executable path: {}", e))?;
-        
-        // Get current arguments
-        let args: Vec<String> = std::env::args().skip(1).collect();
-        
-        // Try pkexec first
-        let pkexec_result = Command::new("pkexec")
-            .arg(&current_exe)
-            .args(&args)
-            .status();
-            
-        match pkexec_result {
-            Ok(status) => {
-                // pkexec succeeded, exit with the same status code
-                std::process::exit(status.code().unwrap_or(0));
-            }
-            Err(_) => {
-                // Fallback to sudo
-                println!("pkexec not available, trying sudo...");
-                let sudo_result = Command::new("sudo")
-                    .arg(&current_exe)
-                    .args(&args)
-                    .status();
-                    
-                match sudo_result {
-                    Ok(status) => {
-                        std::process::exit(status.code().unwrap_or(0));
-                    }
-                    Err(e) => {
-                        return Err(format!("Failed to elevate privileges: {}", e).into());
-                    }
-                }
-            }
-        }
-    }
-}
-
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
